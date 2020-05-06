@@ -15,19 +15,6 @@ from datetime import datetime, timedelta
 from tensorflow.keras.backend import square, mean
 
 def loss_mse_warmup(y_true, y_pred):
-    """
-    y_true_slice = y_true[:, warmup_steps:, :]
-    y_pred_slice = y_pred[:, warmup_steps:, :]
-    loss = tf.losses.mse(y_true_slice, y_pred_slice)
-
-    loss_mean = tf.reduce_mean(loss)
-
-    return loss_mean
-
-    :param y_true:
-    :param y_pred:
-    :return:
-    """
     y_true_slice = y_true[:, warmup_steps:, :]
     y_pred_slice = y_pred[:, warmup_steps:, :]
     mse = mean(square(y_true_slice - y_pred_slice))
@@ -58,69 +45,6 @@ def batch_generator(batch_size, sequence_length, num_train, x_train_scaled, y_tr
 
         yield (x_batch, y_batch)
 
-def plot_comparison(start_idx, length, train, x_train_scaled, y_train, y_test, y_scaler, model, x_test_scaled):
-    """
-    Plot the predicted and true output-signals.
-
-    :param start_idx: Start-index for the time-series.
-    :param length: Sequence-length to process and plot.
-    :param train: Boolean whether to use training- or test-set.
-    """
-
-    if train:
-        # Use training-data.
-        x = x_train_scaled
-        y_true = y_train
-    else:
-        # Use test-data.
-        x = x_test_scaled
-        y_true = y_test
-
-    # End-index for the sequences.
-    end_idx = start_idx + length
-
-    # Select the sequences from the given start-index and
-    # of the given length.
-    x = x[start_idx:end_idx]
-    y_true = y_true[start_idx:end_idx]
-
-    # Input-signals for the model.
-    x = np.expand_dims(x, axis=0)
-
-    # Use the model to predict the output-signals.
-    y_pred = model.predict(x)
-
-    # The output of the model is between 0 and 1.
-    # Do an inverse map to get it back to the scale
-    # of the original data-set.
-    y_pred_rescaled = y_scaler.inverse_transform(y_pred[0])
-
-    # For each output-signal.
-    for signal in range(len(target_names)):
-        # Get the output-signal predicted by the model.
-        signal_pred = y_pred_rescaled[:, signal]
-
-        # Get the true output-signal from the data-set.
-        signal_true = y_true[:, signal]
-
-        # Make the plotting-canvas bigger.
-        plt.figure(figsize=(15, 5))
-
-        # Plot and compare the two signals.
-        plt.plot(signal_true, label='true')
-        plt.plot(signal_pred, label='pred')
-
-        # Plot grey box for warmup-period.
-        p = plt.axvspan(0, warmup_steps, facecolor='black', alpha=0.15)
-
-        # Plot labels etc.
-        plt.ylabel(target_names[signal])
-        plt.legend()
-        plt.show()
-
-
-
-
 def build_model():
 
     # CREATING THE RECURRENT NEURAL NETWORK
@@ -133,14 +57,6 @@ def build_model():
     # As output signals are limited between 0 and 1 we must do the same for the output from the neural network
     model.add(Dense(num_y_signals, activation='sigmoid'))
 
-    if False:
-        from tensorflow.python.keras.initializers import RandomUniform
-
-        init = RandomUniform(minval=-0.05, maxval=0.05)
-
-        model.add(Dense(num_y_signals,
-                        activation='linear',
-                        kernel_initializer=init))
 
     # LOSS FUNCTION
 
@@ -181,14 +97,6 @@ def build_model():
                  callback_tensorboard,
                  callback_reduce_lr]
 
-    """
-    model.fit_generator(generator=generator,
-                        epochs=20,
-                        steps_per_epoch=100,
-                        validation_data=validation_data,
-                        callbacks=callbacks)
-    """
-
     model.fit(x=generator,
               epochs=20,
               steps_per_epoch=100,
@@ -205,8 +113,4 @@ def build_model():
                             y=np.expand_dims(y_test_scaled, axis=0))
     print("loss (test-set):", result)
 
-    if False:
-        for res, metric in zip(result, model.metrics_names):
-            print("{0}: {1:.3e}".format(metric, res))
-
-    plot_comparison(start_idx=100000, length=1000, train=True,x_train_scaled=x_train_scaled, x_test_scaled=x_test_scaled, y_train=y_train,y_test=y_test,y_scaler=y_scaler,model=model)
+   
